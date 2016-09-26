@@ -1,0 +1,34 @@
+# lab3 notes
+
+## Step 1 Download Data and Place in HDFS
+
+# a. Start up EC2 instance and remote in
+ssh -i …
+
+# b. find EBS mounted
+fdisk -l
+# /dev/xvdf
+
+# c. get the persistent store mounted
+mount -t ext4 /dev/xvdf /data
+	
+# d. start HDFS, Hadoop Yarn and Hive
+/root/start-hadoop.sh
+
+# e. start Postgres
+/data/start_postgres.sh
+
+# f. make folder in hdfs for lab 3
+# hdfs dfs -mkdir /user/w205/lab_3
+hadoop fs -mkdir /user/w205/lab_3
+
+# h. download the two datasets using wget
+wget https://s3.amazonaws.com/ucbdatasciencew205/lab_datasets/userdata_lab.csv
+wget https://s3.amazonaws.com/ucbdatasciencew205/lab_datasets/weblog_lab.csv
+
+# i. set up hdfs home for the data
+hadoop fs -mkdir /user/w205/lab_3/user_data
+hadoop fs -mkdir /user/w205/lab_3/weblog_data
+hadoop fs -put userdata_lab.csv /user/w205/lab_3/user_data
+hadoop fs -put weblog_lab.csv /user/w205/lab_3/weblog_data
+
