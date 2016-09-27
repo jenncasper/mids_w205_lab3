@@ -1,0 +1,57 @@
+## 1- List the execution time of the weblog aggregation query for Hive, SparkSQL, and SparkSQL on Parquet.
+
+The following aggregation query was run under Hive and SparkSQL:
+
+SELECT user_id, COUNT(user_id) AS log_countFROM weblogs_schema GROUP BY user_idORDER BY log_count DESCLIMIT 50;
+
+Execution time for Hive:
+	Time taken: 125.968 seconds, Fetched: 50 row(s)
+Execution time for SparkSQL:
+	Time taken: 25.309 seconds, Fetched 50 row(s)
+
+The following aggregation query was run under SparkSQL on Parquet:
+
+SELECT user_id, COUNT(user_id) AS log_countFROM weblogs_parquet GROUP BY user_idORDER BY log_count DESCLIMIT 50;
+
+Execution time for SparkSQL on Parquet:
+	Time taken: 8.797 seconds, Fetched 50 row(s)
+
+This comparison would indicate that the Parquet format and SparkSQL provides the quickest execution. Note only a single node is used in this case. Several nodes would dramatically increase execution time.
+
+## 2- How many jobs does Hive launch? Does SparkSQL launch jobs?The Hive aggregation query output and logs in /tmp/user indicate two jobs - a mapper and a reducer for each job to complete the aggregation query.
+
+The SparkSQL aggregation query on Parquet was inspected using the Spark web console for the instance: http://<instance>:4040/jobs/. The aggregation query is considered a job that Spark divided into 201 tasks - according to the console logs.
+
+Note that both of these queries were implemented on a single node. Increasing the resources, and possibly the configurations, would impact the “jobs” count.
+
+Question - What methods are available to inspect the details of jobs both in Hive and Spark? I haven’t run across good material in the tutorials and books I’ve been working through over the last few weeks yet.
+
+Question - Is there a Hadoop console page showing the jobs submitted, status, and logs? 
+
+## 3- Write a query which joins weblogs_parquet to user_info and counts the top 5 locations. List the locations.
+
+# Check out the join
+SELECT w.user_id, w.datetime, w.session_id, w.product_id, w.referer_url, u.firstname, u.lastname, u.location 
+FROM weblogs_parquet w JOIN userdata_schema u 
+ON (w.user_id = u.user_id)
+LIMIT 50;
+
+# Count the locations
+SELECT u.location, COUNT(u.location) AS log_countFROM weblogs_parquet w JOIN userdata_schema u ON (w.user_id = u.user_id) 
+GROUP BY u.locationORDER BY log_count DESCLIMIT 5;
+
+# Top five locations for weblog hits
+La Fayette      49                                                              
+Leeds	47
+Blountsville	46
+Hamilton	45
+Hayden	45
+
+Question - I used Spark to run the query. For locations with equal counts, it sorted a-z alphabetically. The Hive query results were similar although the secondary sorting was z-a. Is there a way to change this?
+
+## References
+
+https://www.tutorialspoint.com/hive/hiveql_joins.htm
+http://<instance>:50070/dfshealth.html#tab-overview
+http://<instance>:4040/jobs/
+
