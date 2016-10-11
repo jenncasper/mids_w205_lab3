@@ -1,6 +1,6 @@
 # lab3 notes
 
-## Step 1 Download Data and Place in HDFS
+## STEP 1 - Download Data and Place in HDFS
 
 # a. Start up EC2 instance and remote in
 ssh -i …
@@ -31,4 +31,106 @@ hadoop fs -mkdir /user/w205/lab_3/user_data
 hadoop fs -mkdir /user/w205/lab_3/weblog_data
 hadoop fs -put userdata_lab.csv /user/w205/lab_3/user_data
 hadoop fs -put weblog_lab.csv /user/w205/lab_3/weblog_data
+
+## STEP 2 - define schemas for data in Hive
+
+CREATE DATABASE jenncasper_lab3;
+USE jenncasper_lab3;
+
+CREATE EXTERNAL TABLE IF NOT EXISTS weblogs_flat(weblog string)ROW FORMAT DELIMITEDSTORED AS TEXTFILELOCATION '/user/w205/lab_3/weblog_data';
+
+select * from weblogs_flat limit 5;
+
+DROP TABLE IF EXISTS weblogs_schema;
+CREATE EXTERNAL TABLE weblogs_schema (datetime string,user_id string,session_id string,product_id string,referer_url string)ROW FORMAT DELIMITEDFIELDS TERMINATED BY '\t'STORED AS TEXTFILELOCATION '/user/w205/lab_3/weblog_data';
+
+SELECT user_id, COUNT(user_id) AS log_countFROM weblogs_schema GROUP BY user_idORDER BY log_count DESCLIMIT 50;
+
+hive> SELECT user_id, COUNT(user_id) AS log_count
+    > FROM weblogs_schema GROUP BY user_id
+    > ORDER BY log_count DESC
+    > LIMIT 50;
+Query ID = w205_20160927025858_a686c217-a5cd-4256-adad-7bb77c0021b4
+Total jobs = 2
+Launching Job 1 out of 2
+Number of reduce tasks not specified. Estimated from input data size: 1
+In order to change the average load for a reducer (in bytes):
+  set hive.exec.reducers.bytes.per.reducer=<number>
+In order to limit the maximum number of reducers:
+  set hive.exec.reducers.max=<number>
+In order to set a constant number of reducers:
+  set mapreduce.job.reduces=<number>
+Starting Job = job_1474923535248_0001, Tracking URL = http://ip-172-31-46-20.ec2.internal:8088/proxy/application_1474923535248_0001/
+Kill Command = /usr/lib/hadoop/bin/hadoop job  -kill job_1474923535248_0001
+Hadoop job information for Stage-1: number of mappers: 1; number of reducers: 1
+2016-09-27 02:59:26,136 Stage-1 map = 0%,  reduce = 0%
+2016-09-27 02:59:43,228 Stage-1 map = 100%,  reduce = 0%, Cumulative CPU 3.97 sec
+2016-09-27 03:00:02,540 Stage-1 map = 100%,  reduce = 87%, Cumulative CPU 7.76 sec
+2016-09-27 03:00:03,839 Stage-1 map = 100%,  reduce = 100%, Cumulative CPU 8.49 sec
+MapReduce Total cumulative CPU time: 8 seconds 490 msec
+Ended Job = job_1474923535248_0001
+Launching Job 2 out of 2
+Number of reduce tasks determined at compile time: 1
+In order to change the average load for a reducer (in bytes):
+  set hive.exec.reducers.bytes.per.reducer=<number>
+In order to limit the maximum number of reducers:
+  set hive.exec.reducers.max=<number>
+In order to set a constant number of reducers:
+  set mapreduce.job.reduces=<number>
+Starting Job = job_1474923535248_0002, Tracking URL = http://ip-172-31-46-20.ec2.internal:8088/proxy/application_1474923535248_0002/
+Kill Command = /usr/lib/hadoop/bin/hadoop job  -kill job_1474923535248_0002
+Hadoop job information for Stage-2: number of mappers: 1; number of reducers: 1
+2016-09-27 03:00:27,325 Stage-2 map = 0%,  reduce = 0%
+2016-09-27 03:00:41,679 Stage-2 map = 100%,  reduce = 0%, Cumulative CPU 3.25 sec
+2016-09-27 03:00:57,211 Stage-2 map = 100%,  reduce = 100%, Cumulative CPU 6.29 sec
+MapReduce Total cumulative CPU time: 6 seconds 290 msec
+Ended Job = job_1474923535248_0002
+MapReduce Jobs Launched: 
+Stage-Stage-1: Map: 1  Reduce: 1   Cumulative CPU: 8.49 sec   HDFS Read: 5199455 HDFS Write: 867513 SUCCESS
+Stage-Stage-2: Map: 1  Reduce: 1   Cumulative CPU: 6.29 sec   HDFS Read: 871961 HDFS Write: 2001 SUCCESS
+Total MapReduce CPU Time Spent: 14 seconds 780 msec
+OK
+
+# Time taken: 125.968 seconds, Fetched: 50 row(s)
+
+DROP TABLE IF EXISTS userdata_schema;
+CREATE EXTERNAL TABLE userdata_schema (datetime string,user_id string,firstname string,lastname string,location string)ROW FORMAT DELIMITEDFIELDS TERMINATED BY '\t'STORED AS TEXTFILELOCATION '/user/w205/lab_3/user_data';
+
+## STEP 3 - setup Spark and user SparkSQL CLI
+
+# a. get the setup script
+wget https://s3.amazonaws.com/ucbdatasciencew205/setup_spark.sh
+
+# b. run script
+bash ./setup_spark.sh
+
+# c. start Hive metastore
+/data/start_metastore.sh
+
+# d. start SparkSQL CLI
+/data/spark15/bin/spark-sql
+
+# e. check the databases and tables
+show databases;
+use jenncasper_lab3;
+show tables;
+
+# f. run aggregated query from step 2
+SELECT user_id, COUNT(user_id) AS log_countFROM weblogs_schema GROUP BY user_idORDER BY log_count DESCLIMIT 50;
+
+# Time taken: 25.309 seconds, Fetched 50 row(s)
+
+# g. convert weblogs data to Parquet format
+CREATE TABLE weblogs_parquet AS SELECT * FROM weblogs_schema;
+
+# h. run aggregated query on Parquet
+SELECT user_id, COUNT(user_id) AS log_countFROM weblogs_parquet GROUP BY user_idORDER BY log_count DESCLIMIT 50;
+
+# Time taken: 8.797 seconds, Fetched 50 row(s)
+
+## OTHER STUFF
+
+# a. monitor spark progress
+http://<instance>:4040/jobs/
+
 
